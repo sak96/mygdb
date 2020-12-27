@@ -76,8 +76,9 @@ pub(super) mod target {
         }
 
         pub fn kill(&mut self) {
-            if let Some(mut process) = self.process.take() {
-                process.kill().unwrap_or(())
+            if let Some(ref mut process) = self.process {
+                process.kill().unwrap_or(());
+                self.wait();
             }
         }
 
