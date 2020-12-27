@@ -10,7 +10,7 @@ pub struct Debugger {
 }
 
 #[derive(StructOpt)]
-#[structopt(about, global_settings(&[AppSettings::VersionlessSubcommands, AppSettings::NoBinaryName, AppSettings::DisableHelpFlags, AppSettings::DisableVersion]))]
+#[structopt(about, global_settings(&[AppSettings::VersionlessSubcommands, AppSettings::NoBinaryName, AppSettings::DisableHelpFlags, AppSettings::DisableVersion, AppSettings::DisableHelpSubcommand]))]
 enum DebugCommand {
     #[structopt(visible_alias = "q", about = "quit debugging session")]
     Quit,
@@ -18,6 +18,8 @@ enum DebugCommand {
     Run { args: Vec<String> },
     #[structopt(visible_alias = "c", about = "continue debugging session")]
     Continue,
+    #[structopt(visible_alias = "h", about = "help with debugging session")]
+    Help,
 }
 
 impl Debugger {
@@ -34,11 +36,22 @@ impl Debugger {
                     DebugCommand::Quit => break,
                     DebugCommand::Run { args } => self.target.run(&args),
                     DebugCommand::Continue => self.target.cont(),
+                    DebugCommand::Help => DebugCommand::clap()
+                        .after_help("")
+                        .print_long_help()
+                        .unwrap_or(()),
                 },
-                Err(_) => DebugCommand::clap()
-                    .after_help("")
-                    .print_long_help()
-                    .unwrap_or(()),
+                Err(err) => {
+                    if !line.trim().is_empty() {
+                        eprintln!(
+                            "Error: {}",
+                            err.to_string()
+                                .lines()
+                                .nth(0)
+                                .unwrap_or("something went wrong!")
+                        )
+                    }
+                }
             };
         }
     }
