@@ -16,6 +16,8 @@ enum DebugCommand {
     Quit,
     #[structopt(visible_alias = "r", about = "run program with arguments")]
     Run { args: Vec<String> },
+    #[structopt(visible_alias = "c", about = "continue debugging session")]
+    Continue,
 }
 
 impl Debugger {
@@ -31,6 +33,7 @@ impl Debugger {
                 Ok(cmd) => match cmd {
                     DebugCommand::Quit => break,
                     DebugCommand::Run { args } => self.target.run(&args),
+                    DebugCommand::Continue => self.target.cont(),
                 },
                 Err(_) => DebugCommand::clap()
                     .after_help("")
@@ -45,7 +48,13 @@ pub(super) mod target {
     use std::process::Child;
     use std::process::Command;
 
-    use nix::{sys::wait, unistd::Pid};
+    use nix::{
+        sys::{
+            ptrace,
+            wait::{self, WaitStatus},
+        },
+        unistd::Pid,
+    };
 
     pub struct Target {
         binary: String,
@@ -72,11 +81,41 @@ pub(super) mod target {
             }
         }
 
-        pub fn pid(&self) -> Option<Pid> {
+        fn enable_target_trace(cmd: &mut Command) {
+            unsafe {
+                use std::os::unix::process::CommandExt;
+                cmd.pre_exec(|| {
+                    ptrace::traceme().or(Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        "ptrace TRACEME failed",
+                    )))
+                });
+            }
+        }
+
+        pub fn cont(&mut self) {
             if let Some(ref process) = self.process {
-                Some(Pid::from_raw(process.id() as i32))
+                match ptrace::cont(Pid::from_raw(process.id() as i32), None) {
+                    some => println!("Process Continue signalled {:?}", some),
+                };
+                self.wait();
             } else {
-                None
+                eprintln!("Error: No process to continue");
+            }
+        }
+
+        fn wait(&mut self) {
+            if let Some(ref process) = self.process {
+                let pid = Pid::from_raw(process.id() as i32);
+                match wait::waitpid(pid, None) {
+                    Ok(WaitStatus::Exited(pid, exit_code)) => {
+                        println!("Process {} exited with {}", pid, exit_code);
+                        self.process = None
+                    }
+                    some => println!("Process {} Paused with {:?}", pid, some),
+                }
+            } else {
+                eprintln!("Error: No process to wait");
             }
         }
 
@@ -85,6 +124,7 @@ pub(super) mod target {
 
             let mut cmd = Command::new(&self.binary);
             cmd.args(args);
+            Self::enable_target_trace(&mut cmd);
             self.process = match cmd.spawn() {
                 Ok(process) => Some(process),
                 Err(err) => {
@@ -92,11 +132,7 @@ pub(super) mod target {
                     None
                 }
             };
-            if let Some(pid) = self.pid() {
-                match wait::waitpid(pid, None) {
-                    some => println!("Wait Status {:?}", some),
-                }
-            }
+            self.cont();
         }
     }
 }
