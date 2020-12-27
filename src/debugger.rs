@@ -1,8 +1,20 @@
-use self::interpreter::Interpreter;
+extern crate structopt;
+
+use interpreter::Interpreter;
+use structopt::{clap::AppSettings, StructOpt};
 
 pub struct Debugger {
     binary: String,
     interpreter: Interpreter,
+}
+
+#[derive(StructOpt)]
+#[structopt(about, global_settings(&[AppSettings::VersionlessSubcommands, AppSettings::NoBinaryName, AppSettings::DisableHelpFlags, AppSettings::DisableVersion]))]
+enum DebugCommand {
+    #[structopt(visible_alias = "q", about = "quit debugging session")]
+    Quit,
+    #[structopt(visible_alias = "r", about = "run program with arguments")]
+    Run { args: Vec<String> },
 }
 
 impl Debugger {
@@ -14,7 +26,18 @@ impl Debugger {
     }
     pub fn run(&mut self) {
         while let Ok(line) = self.interpreter.read_line() {
-            println!("perform '{}' on '{}'", line, self.binary);
+            match DebugCommand::from_iter_safe(line.split_whitespace()) {
+                Ok(cmd) => match cmd {
+                    DebugCommand::Quit => break,
+                    DebugCommand::Run { args } => {
+                        println!("run {} with args {:?}", self.binary, args)
+                    }
+                },
+                Err(_) => DebugCommand::clap()
+                    .after_help("")
+                    .print_long_help()
+                    .unwrap_or(()),
+            };
         }
     }
 }
