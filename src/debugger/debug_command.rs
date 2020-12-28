@@ -10,4 +10,6 @@ pub enum DebugCommand {
     Continue,
     #[structopt(visible_alias = "h", about = "help with debugging session")]
     Help,
+    #[structopt(visible_aliases = &["bt", "back"], about = "print trace back of program")]
+    BackTrace,
 }

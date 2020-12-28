@@ -25,4 +25,19 @@ impl DebugData {
             column: None,
         })
     }
+
+    pub fn find_function_name(&self, addr: u64) -> String {
+        // TODO: handle errors
+        self.ctx
+            .find_frames(addr)
+            .unwrap()
+            .next()
+            .unwrap()
+            .unwrap()
+            .function
+            .unwrap()
+            .raw_name()
+            .unwrap()
+            .into()
+    }
 }

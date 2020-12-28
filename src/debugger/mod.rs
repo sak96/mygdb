@@ -44,6 +44,7 @@ impl Debugger {
                     DebugCommand::Run { args } => self.target.run(&args),
                     DebugCommand::Continue => self.target.cont(),
                     DebugCommand::Help => println!("{}", self.help_string),
+                    DebugCommand::BackTrace => self.target.print_trace(),
                 },
                 Err(err) => {
                     if !line.trim().is_empty() {

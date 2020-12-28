@@ -52,6 +52,31 @@ impl Target {
         }
     }
 
+    pub fn print_trace(&mut self) {
+        if let Some(ref process) = self.process {
+            let pid = Pid::from_raw(process.id() as i32);
+            let register = ptrace::getregs(pid).unwrap();
+            let mut instruction_ptr = register.rip;
+            let mut base_ptr = register.rbp;
+            loop {
+                let function = self.debug_data.find_function_name(instruction_ptr);
+                println!(
+                    "{} ({})",
+                    function,
+                    self.get_line_from_addr(instruction_ptr)
+                );
+                instruction_ptr =
+                    ptrace::read(pid, (base_ptr + 8) as ptrace::AddressType).unwrap() as u64;
+                base_ptr = ptrace::read(pid, base_ptr as ptrace::AddressType).unwrap() as u64;
+                if function.trim() == "main" {
+                    break;
+                }
+            }
+        } else {
+            eprintln!("Error: No process to print trace");
+        }
+    }
+
     pub fn cont(&mut self) {
         if let Some(ref process) = self.process {
             if let Err(err) = ptrace::cont(Pid::from_raw(process.id() as i32), None) {
