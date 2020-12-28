@@ -64,6 +64,15 @@ impl Target {
         }
     }
 
+    fn get_line_from_addr(&self, rip: u64) -> String {
+        let location = self.debug_data.find_location(rip);
+        format!(
+            "{}:{}",
+            location.file.unwrap_or("???"),
+            location.line.map(|k| k).unwrap_or(0)
+        )
+    }
+
     fn wait(&mut self) {
         if let Some(ref process) = self.process {
             let pid = Pid::from_raw(process.id() as i32);
@@ -74,13 +83,11 @@ impl Target {
                 }
                 Ok(WaitStatus::Stopped(pid, signal)) => {
                     let register = ptrace::getregs(pid).unwrap();
-                    let location = self.debug_data.find_location(register.rip);
                     println!(
-                        "Process {} stopped (signal {:?}) at {}:{}",
+                        "Process {} stopped (signal {:?}) at {}",
                         pid,
                         signal,
-                        location.file.unwrap_or("???"),
-                        location.line.map(|k| k).unwrap_or(0)
+                        self.get_line_from_addr(register.rip)
                     );
                 }
                 some => println!("Process {} paused with {:?}", pid, some),
