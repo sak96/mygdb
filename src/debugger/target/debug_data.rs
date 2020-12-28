@@ -19,14 +19,10 @@ impl DebugData {
     }
 
     pub fn find_location(&self, addr: u64) -> Location {
-        use std::convert::TryInto;
-        self.ctx
-            .find_location(addr.try_into().unwrap())
-            .unwrap()
-            .unwrap_or(Location {
-                line: None,
-                file: None,
-                column: None,
-            })
+        self.ctx.find_location(addr).unwrap().unwrap_or(Location {
+            line: None,
+            file: None,
+            column: None,
+        })
     }
 }
