@@ -49,10 +49,11 @@ impl Target {
 
     pub fn cont(&mut self) {
         if let Some(ref process) = self.process {
-            match ptrace::cont(Pid::from_raw(process.id() as i32), None) {
-                some => println!("Process Continue signalled {:?}", some),
-            };
-            self.wait();
+            if let Err(err) = ptrace::cont(Pid::from_raw(process.id() as i32), None) {
+                eprintln!("Error: Process could not be continued\n{:?}", err);
+            } else {
+                self.wait();
+            }
         } else {
             eprintln!("Error: No process to continue");
         }
