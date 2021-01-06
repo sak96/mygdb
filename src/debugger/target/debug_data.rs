@@ -26,18 +26,17 @@ impl DebugData {
         })
     }
 
-    pub fn find_function_name(&self, addr: u64) -> String {
-        // TODO: handle errors
-        self.ctx
-            .find_frames(addr)
-            .unwrap()
-            .next()
-            .unwrap()
-            .unwrap()
-            .function
-            .unwrap()
-            .raw_name()
-            .unwrap()
-            .into()
+    pub fn find_function_name(&self, addr: u64) -> Option<String> {
+        Some(
+            self.ctx
+                .find_frames(addr)
+                .ok()?
+                .next()
+                .ok()??
+                .function?
+                .raw_name()
+                .ok()?
+                .into(),
+        )
     }
 }

@@ -59,15 +59,23 @@ impl Target {
             let mut instruction_ptr = register.rip;
             let mut base_ptr = register.rbp;
             loop {
-                let function = self.debug_data.find_function_name(instruction_ptr);
+                let function = self
+                    .debug_data
+                    .find_function_name(instruction_ptr)
+                    .unwrap_or("???".into());
                 println!(
                     "{} ({})",
                     function,
                     self.get_line_from_addr(instruction_ptr)
                 );
-                instruction_ptr =
-                    ptrace::read(pid, (base_ptr + 8) as ptrace::AddressType).unwrap() as u64;
-                base_ptr = ptrace::read(pid, base_ptr as ptrace::AddressType).unwrap() as u64;
+                instruction_ptr = match ptrace::read(pid, (base_ptr + 8) as ptrace::AddressType) {
+                    Ok(addr) => addr as u64,
+                    _ => break,
+                };
+                base_ptr = match ptrace::read(pid, base_ptr as ptrace::AddressType) {
+                    Ok(addr) => addr as u64,
+                    _ => break,
+                };
                 if function.trim() == "main" {
                     break;
                 }
